@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Alumnos - Sistema Escolar</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h2, h3 {
+            color: #333;
+        }
+
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        input {
+            padding: 10px;
+            margin: 5px 5px 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 250px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+            button:hover {
+                background-color: #0b5ed7;
+            }
+
+        .btn-danger {
+            background-color: #dc3545;
+        }
+
+            .btn-danger:hover {
+                background-color: #bb2d3b;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-flex">
+            <h2>Panel de Alumnos</h2>
+            <button onclick="cerrarSesion()" class="btn-danger">Cerrar Sesión</button>
+        </div>
+        <hr>
+
+        <h3>Registrar Nuevo Alumno</h3>
+        <form id="alumnoForm">
+            <input type="text" id="nombre" placeholder="Nombre" required>
+            <input type="text" id="apellido" placeholder="Apellido" required>
+            <input type="text" id="dni" placeholder="DNI" required>
+            <input type="date" id="fechaNacimiento" required title="Fecha de Nacimiento">
+            <input type="number" id="idTutor" placeholder="ID del Tutor (Ej: 1)" required>
+            <button type="submit">Guardar</button>
+        </form>
+
+        <h3 style="margin-top: 30px;">Lista de Alumnos</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>DNI</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaAlumnos">
+                <!-- Se cargan dinámicamente con JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+                // 1. Validar que exista el token JWT en el navegador
+                const token = localStorage.getItem('tokenJWT');
+                if (!token) {
+                    window.location.href = 'login.html';
+                }
+
+                // 2. Función para obtener y listar los alumnos desde la API
+                async function cargarAlumnos() {
+                    try {
+                        const respuesta = await fetch('/api/Alumnos', {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${token}` // Enviamos el token de seguridad
+                            }
+                        });
+
+                        if (respuesta.ok) {
+                            const alumnos = await respuesta.json();
+                            const tbody = document.getElementById('tablaAlumnos');
+                            tbody.innerHTML = '';
+
+                            alumnos.forEach(a => {
+                                // Nota: revisá si el ID en tu modelo C# se llama idAlumno, IdAlumno o Id
+                                const id = a.idAlumno || a.IdAlumno || a.id || a.Id;
+                                tbody.innerHTML += `
+                                    <tr>
+                                        <td>${id}</td>
+                                        <td>${a.nombre || a.Nombre}</td>
+                                        <td>${a.apellido || a.Apellido}</td>
+                                        <td>${a.dni || a.Dni}</td>
+                                        <td><button class="btn-danger" onclick="eliminarAlumno(${id})">Eliminar</button></td>
+                                    </tr>
+                                `;
+                            });
+                        } else if (respuesta.status === 401) {
+                            alert('La sesión ha expirado.');
+                            cerrarSesion();
+                        }
+                    } catch (error) {
+                        console.error('Error al conectar con la API de alumnos:', error);
+                    }
+                }
+
+// 3. Registrar un nuevo alumno (POST)
+document.getElementById('alumnoForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const nuevoAlumno = {
+        nombre: document.getElementById('nombre').value,
+        apellido: document.getElementById('apellido').value,
+        dni: document.getElementById('dni').value,
+        fechaNacimiento: document.getElementById('fechaNacimiento').value,
+        idTutor: parseInt(document.getElementById('idTutor').value)
+    };
+
+    const respuesta = await fetch('/api/Alumnos', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(nuevoAlumno)
+    });
+
+    if (respuesta.ok) {
+        document.getElementById('alumnoForm').reset();
+        cargarAlumnos(); // Recargamos la tabla
+    } else {
+        alert('No se pudo registrar el alumno. Verificá que el ID del tutor exista.');
+    }
+});
+
+                // 4. Eliminar un alumno (DELETE)
+                async function eliminarAlumno(id) {
+                    if (confirm('¿Estás seguro de eliminar este alumno?')) {
+                        const respuesta = await fetch(`/api/Alumnos/${id}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+
+                        if (respuesta.ok) {
+                            cargarAlumnos();
+                        } else {
+                            alert('Error al eliminar el registro.');
+                        }
+                    }
+                }
+
+                function cerrarSesion() {
+                    localStorage.removeItem('tokenJWT');
+                    window.location.href = 'login.html';
+                }
+
+                // Cargar los alumnos al abrir la página
+                cargarAlumnos();
+    </script>
+
+</body>
+</html>

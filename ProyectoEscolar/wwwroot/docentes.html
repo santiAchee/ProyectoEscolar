@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Docentes - Sistema Escolar</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #198754;
+            color: white;
+        }
+
+        input {
+            padding: 10px;
+            margin: 5px 5px 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 200px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #198754;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+            button:hover {
+                background-color: #157347;
+            }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+            .btn-secondary:hover {
+                background-color: #5c636a;
+            }
+
+        .btn-danger {
+            background-color: #dc3545;
+        }
+
+            .btn-danger:hover {
+                background-color: #bb2d3b;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-flex">
+            <h2>Panel de Docentes</h2>
+            <div>
+                <button onclick="location.href='menu.html'" class="btn-secondary">Volver al Menú</button>
+                <button onclick="cerrarSesion()" class="btn-danger">Cerrar Sesión</button>
+            </div>
+        </div>
+        <hr>
+
+        <h3>Registrar Nuevo Docente</h3>
+        <form id="docenteForm">
+            <input type="text" id="nombre" placeholder="Nombre" required>
+            <input type="text" id="apellido" placeholder="Apellido" required>
+            <input type="text" id="dni" placeholder="DNI" required>
+            <input type="text" id="legajo" placeholder="Legajo" required>
+            <input type="email" id="email" placeholder="Correo Electrónico">
+            <input type="text" id="telefono" placeholder="Teléfono">
+            <button type="submit">Guardar</button>
+        </form>
+
+        <h3 style="margin-top: 30px;">Lista de Docentes</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>DNI</th>
+                    <th>Legajo</th>
+                    <th>Email</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaDocentes"></tbody>
+        </table>
+    </div>
+
+    <script>const token = localStorage.getItem('tokenJWT');
+        if (!token) window.location.href = 'login.html';
+
+        async function cargarDocentes() {
+            try {
+                const res = await fetch('/api/Docentes', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const docentes = await res.json();
+                    const tbody = document.getElementById('tablaDocentes');
+                    tbody.innerHTML = '';
+                    docentes.forEach(d => {
+                        const id = d.idDocente || d.IdDocente;
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${id}</td>
+                                <td>${d.nombre || d.Nombre}</td>
+                                <td>${d.apellido || d.Apellido}</td>
+                                <td>${d.dni || d.Dni}</td>
+                                <td>${d.legajo || d.Legajo}</td>
+                                <td>${d.email || d.Email || '-'}</td>
+                                <td><button class="btn-danger" onclick="eliminarDocente(${id})">Eliminar</button></td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) { console.error('Error al cargar docentes', err); }
+        }
+
+        document.getElementById('docenteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nuevo = {
+                nombre: document.getElementById('nombre').value,
+                apellido: document.getElementById('apellido').value,
+                dni: document.getElementById('dni').value,
+                legajo: document.getElementById('legajo').value,
+                email: document.getElementById('email').value,
+                telefono: document.getElementById('telefono').value,
+                activo: true
+            };
+
+            const res = await fetch('/api/Docentes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(nuevo)
+            });
+
+            if (res.ok) {
+                document.getElementById('docenteForm').reset();
+                cargarDocentes();
+            } else { alert('Error al registrar docente.'); }
+        });
+
+        async function eliminarDocente(id) {
+            if (confirm('¿Dar de baja este docente?')) {
+                const res = await fetch(`/api/Docentes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) cargarDocentes();
+                else alert('No se pudo eliminar.');
+            }
+        }
+
+        function cerrarSesion() { localStorage.removeItem('tokenJWT'); window.location.href = 'login.html'; }
+
+        cargarDocentes();</script>
+</body>
+</html>

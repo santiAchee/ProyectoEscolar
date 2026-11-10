@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema Escolar</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            background-color: #f4f7f6; 
+            margin: 0;
+        }
+        .login-container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            width: 320px; 
+        }
+        .login-container h2 { 
+            text-align: center; 
+            color: #333; 
+            margin-bottom: 20px; 
+        }
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background-color: #0d6efd; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            margin-top: 10px;
+        }
+        button:hover { 
+            background-color: #0b5ed7; 
+        }
+        #mensaje { 
+            text-align: center; 
+            margin-top: 15px; 
+            font-weight: bold; 
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <h2>Iniciar Sesión</h2>
+        <form id="loginForm">
+            <!-- Ya tiene el mail y pass del controlador para probar rápido -->
+            <input type="email" id="email" placeholder="Correo electrónico" required value="admin@admin.com">
+            <input type="password" id="password" placeholder="Contraseña" required value="123">
+            <button type="submit">Ingresar</button>
+        </form>
+        <p id="mensaje"></p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Evita que la página recargue al hacer submit
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const mensaje = document.getElementById('mensaje');
+            
+            try {
+                // REEMPLAZÁ ESTO con la URL exacta y el puerto donde está corriendo tu API
+               const urlApi = '/api/auth/login';
+
+                const respuesta = await fetch(urlApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password })
+                });
+
+                if (respuesta.ok) {
+                    const data = await respuesta.json();
+                    
+                    // Guardamos el token en la memoria del navegador para usarlo después
+                    localStorage.setItem('tokenJWT', data.token); 
+                    
+                    mensaje.style.color = "green";
+                    mensaje.innerText = "¡Ingreso exitoso!";
+                    
+                    // Acá programarías la redirección a tu pantalla de Alumnos
+                     window.location.href = 'menu.html';
+                } else {
+                    mensaje.style.color = "red";
+                    mensaje.innerText = "Correo o contraseña incorrectos.";
+                }
+            } catch (error) {
+                mensaje.style.color = "red";
+                mensaje.innerText = "Error de conexión con el servidor.";
+                console.error(error);
+            }
+        });
+    </script>
+
+</body>
+</html>

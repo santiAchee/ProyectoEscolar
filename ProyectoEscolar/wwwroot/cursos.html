@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Cursos - Sistema Escolar</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #6f42c1;
+            color: white;
+        }
+
+        input, select {
+            padding: 10px;
+            margin: 5px 5px 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 220px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #6f42c1;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+            button:hover {
+                background-color: #59359a;
+            }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+            .btn-secondary:hover {
+                background-color: #5c636a;
+            }
+
+        .btn-danger {
+            background-color: #dc3545;
+        }
+
+            .btn-danger:hover {
+                background-color: #bb2d3b;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-flex">
+            <h2>Panel de Cursos</h2>
+            <div>
+                <button onclick="location.href='menu.html'" class="btn-secondary">Volver al Menú</button>
+                <button onclick="cerrarSesion()" class="btn-danger">Cerrar Sesión</button>
+            </div>
+        </div>
+        <hr>
+
+        <h3>Registrar Nuevo Curso</h3>
+        <form id="cursoForm">
+            <input type="number" id="idDocente" placeholder="ID Docente a cargo" required>
+            <select id="nivel" required>
+                <option value="">Seleccione Nivel</option>
+                <option value="Inicial">Inicial</option>
+                <option value="Primaria">Primaria</option>
+                <option value="Secundaria">Secundaria</option>
+            </select>
+            <input type="number" id="anioCurso" placeholder="Año (Ej: 1, 2, 3...)" required>
+            <input type="text" id="division" placeholder="División (Ej: A, B)" required>
+            <select id="turno" required>
+                <option value="">Seleccione Turno</option>
+                <option value="Mañana">Mañana</option>
+                <option value="Tarde">Tarde</option>
+            </select>
+            <input type="number" id="cupoMaximo" placeholder="Cupo Máximo" required>
+            <button type="submit">Guardar</button>
+        </form>
+
+        <h3 style="margin-top: 30px;">Lista de Cursos</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nivel</th>
+                    <th>Año</th>
+                    <th>División</th>
+                    <th>Turno</th>
+                    <th>Cupo</th>
+                    <th>ID Docente</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaCursos"></tbody>
+        </table>
+    </div>
+
+    <script>
+                const token = localStorage.getItem('tokenJWT');
+                if (!token) window.location.href = 'login.html';
+
+                async function cargarCursos() {
+                    try {
+                        const res = await fetch('/api/Cursos', { headers: { 'Authorization': `Bearer ${token}` } });
+                        if (res.ok) {
+                            const cursos = await res.json();
+                            const tbody = document.getElementById('tablaCursos');
+                            tbody.innerHTML = '';
+                            cursos.forEach(c => {
+                                const id = c.idCurso || c.IdCurso;
+                                tbody.innerHTML += `
+                                    <tr>
+                                        <td>${id}</td>
+                                        <td>${c.nivel || c.Nivel}</td>
+                                        <td>${c.anioCurso || c.AnioCurso}</td>
+                                        <td>${c.division || c.Division}</td>
+                                        <td>${c.turno || c.Turno}</td>
+                                        <td>${c.cupoMaximo || c.CupoMaximo}</td>
+                                        <td>${c.idDocente || c.IdDocente}</td>
+                                        <td><button class="btn-danger" onclick="eliminarCurso(${id})">Eliminar</button></td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                    } catch (err) { console.error('Error al cargar cursos', err); }
+                }
+
+                document.getElementById('cursoForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const nuevo = {
+                        idDocente: parseInt(document.getElementById('idDocente').value),
+                        nivel: document.getElementById('nivel').value,
+                        anioCurso: parseInt(document.getElementById('anioCurso').value),
+                        division: document.getElementById('division').value,
+                        turno: document.getElementById('turno').value,
+                        cupoMaximo: parseInt(document.getElementById('cupoMaximo').value)
+                    };
+
+                    const res = await fetch('/api/Cursos', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify(nuevo)
+                    });
+
+                    if (res.ok) {
+                        document.getElementById('cursoForm').reset();
+                        cargarCursos();
+                    } else { alert('Error al registrar curso. Verificá que el ID del docente exista.'); }
+                });
+
+                async function eliminarCurso(id) {
+                    if (confirm('¿Dar de baja este curso?')) {
+                        const res = await fetch(`/api/Cursos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                        if (res.ok) cargarCursos();
+                        else alert('No se pudo eliminar el curso.');
+                    }
+                }
+
+                function cerrarSesion() { localStorage.removeItem('tokenJWT'); window.location.href = 'login.html'; }
+
+                cargarCursos();
+    </script>
+</body>
+</html>
