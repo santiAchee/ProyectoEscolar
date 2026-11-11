@@ -13,16 +13,12 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 980px;
             margin: auto;
             background: white;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        h2, h3 {
-            color: #333;
         }
 
         .header-flex {
@@ -48,12 +44,12 @@
             color: white;
         }
 
-        input {
+        input, select {
             padding: 10px;
             margin: 5px 5px 5px 0;
             border: 1px solid #ccc;
             border-radius: 5px;
-            width: 250px;
+            width: 200px;
         }
 
         button {
@@ -70,21 +66,27 @@
                 background-color: #0b5ed7;
             }
 
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
         .btn-danger {
             background-color: #dc3545;
         }
 
-            .btn-danger:hover {
-                background-color: #bb2d3b;
-            }
+        .btn-teal {
+            background-color: #198754;
+        }
     </style>
 </head>
 <body>
-
     <div class="container">
         <div class="header-flex">
             <h2>Panel de Alumnos</h2>
-            <button onclick="cerrarSesion()" class="btn-danger">Cerrar Sesión</button>
+            <div>
+                <button onclick="location.href='inscripciones.html'" class="btn-teal">Asignar Curso / Inscripciones</button>
+                <button onclick="location.href='menu.html'" class="btn-secondary">Volver al Menú</button>
+            </div>
         </div>
         <hr>
 
@@ -93,12 +95,16 @@
             <input type="text" id="nombre" placeholder="Nombre" required>
             <input type="text" id="apellido" placeholder="Apellido" required>
             <input type="text" id="dni" placeholder="DNI" required>
-            <input type="date" id="fechaNacimiento" required title="Fecha de Nacimiento">
-            <input type="number" id="idTutor" placeholder="ID del Tutor (Ej: 1)" required>
-            <button type="submit">Guardar</button>
+            <input type="date" id="fechaNacimiento" required>
+            <input type="text" id="direccion" placeholder="Dirección">
+            <input type="text" id="telefono" placeholder="Teléfono">
+            <select id="idTutor" required>
+                <option value="">Seleccione un Tutor...</option>
+            </select>
+            <button type="submit">Guardar Alumno</button>
         </form>
 
-        <h3 style="margin-top: 30px;">Lista de Alumnos</h3>
+        <h3 style="margin-top: 30px;">Lista de Alumnos Activos</h3>
         <table>
             <thead>
                 <tr>
@@ -106,112 +112,90 @@
                     <th>Nombre</th>
                     <th>Apellido</th>
                     <th>DNI</th>
+                    <th>Nacimiento</th>
+                    <th>ID Tutor</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody id="tablaAlumnos">
-                <!-- Se cargan dinámicamente con JavaScript -->
-            </tbody>
+            <tbody id="tablaAlumnos"></tbody>
         </table>
     </div>
 
     <script>
-                // 1. Validar que exista el token JWT en el navegador
-                const token = localStorage.getItem('tokenJWT');
-                if (!token) {
-                    window.location.href = 'login.html';
+                async function cargarTutores() {
+                    const res = await fetch('/api/Tutores');
+                    if (res.ok) {
+                        const tutores = await res.json();
+                        const sel = document.getElementById('idTutor');
+                        sel.innerHTML = '<option value="">Seleccione un Tutor...</option>';
+                        tutores.forEach(t => {
+                            sel.innerHTML += `<option value="${t.idTutor}">${t.apellido}, ${t.nombre} (${t.tipo} - DNI: ${t.dni})</option>`;
+                        });
+                    }
                 }
 
-                // 2. Función para obtener y listar los alumnos desde la API
                 async function cargarAlumnos() {
-                    try {
-                        const respuesta = await fetch('/api/Alumnos', {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${token}` // Enviamos el token de seguridad
-                            }
+                    const res = await fetch('/api/Alumnos');
+                    if (res.ok) {
+                        const alumnos = await res.json();
+                        const tbody = document.getElementById('tablaAlumnos');
+                        tbody.innerHTML = '';
+                        alumnos.forEach(a => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${a.idAlumno}</td>
+                                    <td>${a.nombre}</td>
+                                    <td>${a.apellido}</td>
+                                    <td>${a.dni}</td>
+                                    <td>${a.fechaNacimiento}</td>
+                                    <td>${a.idTutor || '-'}</td>
+                                    <td>
+                                        <button class="btn-teal" onclick="location.href='inscripciones.html'">Inscribir a Curso</button>
+                                        <button class="btn-danger" onclick="eliminarAlumno(${a.idAlumno})">Dar de Baja</button>
+                                    </td>
+                                </tr>
+                            `;
                         });
-
-                        if (respuesta.ok) {
-                            const alumnos = await respuesta.json();
-                            const tbody = document.getElementById('tablaAlumnos');
-                            tbody.innerHTML = '';
-
-                            alumnos.forEach(a => {
-                                // Nota: revisá si el ID en tu modelo C# se llama idAlumno, IdAlumno o Id
-                                const id = a.idAlumno || a.IdAlumno || a.id || a.Id;
-                                tbody.innerHTML += `
-                                    <tr>
-                                        <td>${id}</td>
-                                        <td>${a.nombre || a.Nombre}</td>
-                                        <td>${a.apellido || a.Apellido}</td>
-                                        <td>${a.dni || a.Dni}</td>
-                                        <td><button class="btn-danger" onclick="eliminarAlumno(${id})">Eliminar</button></td>
-                                    </tr>
-                                `;
-                            });
-                        } else if (respuesta.status === 401) {
-                            alert('La sesión ha expirado.');
-                            cerrarSesion();
-                        }
-                    } catch (error) {
-                        console.error('Error al conectar con la API de alumnos:', error);
                     }
                 }
 
-// 3. Registrar un nuevo alumno (POST)
-document.getElementById('alumnoForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+                document.getElementById('alumnoForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const nuevo = {
+                        nombre: document.getElementById('nombre').value,
+                        apellido: document.getElementById('apellido').value,
+                        dni: document.getElementById('dni').value,
+                        fechaNacimiento: document.getElementById('fechaNacimiento').value,
+                        direccion: document.getElementById('direccion').value,
+                        telefono: document.getElementById('telefono').value,
+                        idTutor: parseInt(document.getElementById('idTutor').value),
+                        activo: true
+                    };
 
-    const nuevoAlumno = {
-        nombre: document.getElementById('nombre').value,
-        apellido: document.getElementById('apellido').value,
-        dni: document.getElementById('dni').value,
-        fechaNacimiento: document.getElementById('fechaNacimiento').value,
-        idTutor: parseInt(document.getElementById('idTutor').value)
-    };
+                    const res = await fetch('/api/Alumnos', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(nuevo)
+                    });
 
-    const respuesta = await fetch('/api/Alumnos', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(nuevoAlumno)
-    });
+                    if (res.ok) {
+                        document.getElementById('alumnoForm').reset();
+                        cargarAlumnos();
+                    } else {
+                        const err = await res.json();
+                        alert('Error: ' + (err.mensaje || 'No se pudo registrar el alumno.'));
+                    }
+                });
 
-    if (respuesta.ok) {
-        document.getElementById('alumnoForm').reset();
-        cargarAlumnos(); // Recargamos la tabla
-    } else {
-        alert('No se pudo registrar el alumno. Verificá que el ID del tutor exista.');
-    }
-});
-
-                // 4. Eliminar un alumno (DELETE)
                 async function eliminarAlumno(id) {
-                    if (confirm('¿Estás seguro de eliminar este alumno?')) {
-                        const respuesta = await fetch(`/api/Alumnos/${id}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-
-                        if (respuesta.ok) {
-                            cargarAlumnos();
-                        } else {
-                            alert('Error al eliminar el registro.');
-                        }
+                    if (confirm('¿Dar de baja este alumno?')) {
+                        const res = await fetch(`/api/Alumnos/${id}`, { method: 'DELETE' });
+                        if (res.ok) cargarAlumnos();
                     }
                 }
 
-                function cerrarSesion() {
-                    localStorage.removeItem('tokenJWT');
-                    window.location.href = 'login.html';
-                }
-
-                // Cargar los alumnos al abrir la página
+                cargarTutores();
                 cargarAlumnos();
     </script>
-
 </body>
 </html>

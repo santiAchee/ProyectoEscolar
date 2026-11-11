@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoEscolar.Data;
 using ProyectoEscolar.Models;
@@ -8,7 +7,6 @@ namespace ProyectoEscolar.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Bloquea el acceso a quien no tenga un JWT válido
     public class AlumnosController : ControllerBase
     {
         private readonly SistemaEscolarContext _context;
@@ -18,85 +16,63 @@ namespace ProyectoEscolar.Controllers
             _context = context;
         }
 
-        // GET: api/Alumnos
         [HttpGet]
         public async Task<IActionResult> Get()
         {
             var alumnos = await _context.Alumnos
                 .Where(a => a.Activo == true)
                 .ToListAsync();
-
             return Ok(alumnos);
         }
 
-        // POST: api/Alumnos
         [HttpPost]
-        public async Task<IActionResult> Post(Alumno alumno)
+        public async Task<IActionResult> Post([FromBody] Alumno alumno)
         {
-            // 1. Validación de edad mínima (al menos 3 años)
-            if ((DateTime.Now.Year - alumno.FechaNacimiento.Year) < 3)
+            if (await _context.Alumnos.AnyAsync(a => a.Dni == alumno.Dni))
+                return BadRequest(new { mensaje = "Ya existe un alumno con ese DNI." });
+
+            if (alumno.IdTutor.HasValue)
             {
-                return BadRequest(new { mensaje = "El alumno debe tener al menos 3 años." });
+                var tutorExiste = await _context.Tutores.AnyAsync(t => t.IdTutor == alumno.IdTutor.Value && t.Activo == true);
+                if (!tutorExiste)
+                    return BadRequest(new { mensaje = "El tutor indicado no existe o está dado de baja." });
             }
 
-            // 2. Validación de DNI duplicado
-            var dniExiste = await _context.Alumnos.AnyAsync(a => a.Dni == alumno.Dni);
-            if (dniExiste)
-            {
-                return BadRequest(new { mensaje = "Ya existe un alumno registrado con ese DNI." });
-            }
-
-            // 3. Validación de existencia del Tutor (por clave foránea)
-            var tutorExiste = await _context.Tutores.AnyAsync(t => t.IdTutor == alumno.IdTutor);
-            if (!tutorExiste)
-            {
-                return BadRequest(new { mensaje = "El ID de tutor especificado no existe en la base de datos." });
-            }
-
-            // Configuración por defecto
+            alumno.IdAlumno = 0;
             alumno.Activo = true;
-
             _context.Alumnos.Add(alumno);
             await _context.SaveChangesAsync();
 
             return Ok(alumno);
         }
 
-        // PUT: api/Alumnos/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, Alumno alumno)
+        public async Task<IActionResult> Put(int id, [FromBody] Alumno alumno)
         {
-            if (id != alumno.IdAlumno)
-            {
-                return BadRequest(new { mensaje = "El ID no coincide." });
-            }
+            var existente = await _context.Alumnos.FindAsync(id);
+            if (existente == null) return NotFound(new { mensaje = "Alumno no encontrado." });
 
-            // Validar existencia del tutor antes de actualizar
-            var tutorExiste = await _context.Tutores.AnyAsync(t => t.IdTutor == alumno.IdTutor);
-            if (!tutorExiste)
-            {
-                return BadRequest(new { mensaje = "El ID de tutor especificado no existe." });
-            }
+            existente.Nombre = alumno.Nombre;
+            existente.Apellido = alumno.Apellido;
+            existente.Dni = alumno.Dni;
+            existente.FechaNacimiento = alumno.FechaNacimiento;
+            existente.Direccion = alumno.Direccion;
+            existente.Telefono = alumno.Telefono;
+            existente.IdTutor = alumno.IdTutor;
+            existente.Activo = alumno.Activo ?? true;
 
-            _context.Alumnos.Update(alumno);
             await _context.SaveChangesAsync();
-
             return NoContent();
         }
 
-        // DELETE: api/Alumnos/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             var alumno = await _context.Alumnos.FindAsync(id);
-            if (alumno == null)
-            {
-                return NotFound();
-            }
+            if (alumno == null) return NotFound();
 
-            alumno.Activo = false; // Baja lógica para no romper relaciones con inscripciones
+            alumno.Activo = false;
             await _context.SaveChangesAsync();
-
             return NoContent();
         }
     }

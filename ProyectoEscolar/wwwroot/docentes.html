@@ -123,12 +123,10 @@
         </table>
     </div>
 
-    <script>const token = localStorage.getItem('tokenJWT');
-        if (!token) window.location.href = 'login.html';
-
+    <script>
         async function cargarDocentes() {
             try {
-                const res = await fetch('/api/Docentes', { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetch('/api/Docentes');
                 if (res.ok) {
                     const docentes = await res.json();
                     const tbody = document.getElementById('tablaDocentes');
@@ -165,26 +163,34 @@
 
             const res = await fetch('/api/Docentes', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(nuevo)
             });
 
             if (res.ok) {
                 document.getElementById('docenteForm').reset();
                 cargarDocentes();
-            } else { alert('Error al registrar docente.'); }
+            } else {
+                const errorData = await res.json();
+                console.error('Error:', errorData);
+                alert('Error al registrar docente.');
+            }
         });
 
         async function eliminarDocente(id) {
             if (confirm('¿Dar de baja este docente?')) {
-                const res = await fetch(`/api/Docentes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetch(`/api/Docentes/${id}`, { method: 'DELETE' });
                 if (res.ok) cargarDocentes();
                 else alert('No se pudo eliminar.');
             }
         }
 
-        function cerrarSesion() { localStorage.removeItem('tokenJWT'); window.location.href = 'login.html'; }
+        function cerrarSesion() {
+            localStorage.removeItem('tokenJWT');
+            window.location.href = 'login.html';
+        }
 
-        cargarDocentes();</script>
+        cargarDocentes();
+    </script>
 </body>
 </html>

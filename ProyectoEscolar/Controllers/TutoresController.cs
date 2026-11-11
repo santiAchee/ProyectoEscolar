@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoEscolar.Data;
 using ProyectoEscolar.Models;
@@ -8,7 +7,6 @@ namespace ProyectoEscolar.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class TutoresController : ControllerBase
     {
         private readonly SistemaEscolarContext _context;
@@ -28,14 +26,12 @@ namespace ProyectoEscolar.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post(Tutore tutor)
+        public async Task<IActionResult> Post([FromBody] Tutore tutor)
         {
-            var dniExiste = await _context.Tutores.AnyAsync(t => t.Dni == tutor.Dni);
-            if (dniExiste)
-            {
-                return BadRequest(new { mensaje = "Ya existe un tutor registrado con ese DNI." });
-            }
+            if (await _context.Tutores.AnyAsync(t => t.Dni == tutor.Dni))
+                return BadRequest(new { mensaje = "Ya existe un tutor con ese DNI." });
 
+            tutor.IdTutor = 0;
             tutor.Activo = true;
             _context.Tutores.Add(tutor);
             await _context.SaveChangesAsync();
@@ -44,11 +40,19 @@ namespace ProyectoEscolar.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, Tutore tutor)
+        public async Task<IActionResult> Put(int id, [FromBody] Tutore tutor)
         {
-            if (id != tutor.IdTutor) return BadRequest(new { mensaje = "El ID no coincide." });
+            var existente = await _context.Tutores.FindAsync(id);
+            if (existente == null) return NotFound(new { mensaje = "Tutor no encontrado." });
 
-            _context.Tutores.Update(tutor);
+            existente.Nombre = tutor.Nombre;
+            existente.Apellido = tutor.Apellido;
+            existente.Dni = tutor.Dni;
+            existente.Telefono = tutor.Telefono;
+            existente.Email = tutor.Email;
+            existente.Tipo = tutor.Tipo;
+            existente.Activo = tutor.Activo ?? true;
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -59,7 +63,7 @@ namespace ProyectoEscolar.Controllers
             var tutor = await _context.Tutores.FindAsync(id);
             if (tutor == null) return NotFound();
 
-            tutor.Activo = false; // Baja lógica
+            tutor.Activo = false;
             await _context.SaveChangesAsync();
             return NoContent();
         }

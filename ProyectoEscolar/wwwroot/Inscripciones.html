@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscripciones, Cupos y Documentación - Sistema Escolar</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1150px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        select, input[type="text"], input[type="number"] {
+            padding: 10px;
+            margin: 5px 5px 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            min-width: 210px;
+        }
+
+        button {
+            padding: 8px 14px;
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 2px;
+        }
+
+            button:hover {
+                background-color: #0b5ed7;
+            }
+
+        .btn-success {
+            background-color: #198754;
+        }
+
+            .btn-success:hover {
+                background-color: #157347;
+            }
+
+        .btn-warning {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+            .btn-warning:hover {
+                background-color: #e0a800;
+            }
+
+        .btn-danger {
+            background-color: #dc3545;
+        }
+
+            .btn-danger:hover {
+                background-color: #bb2d3b;
+            }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .bg-pendiente {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .bg-inscripto {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .bg-espera {
+            background-color: #cff4fc;
+            color: #055160;
+        }
+
+        .bg-rechazado {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 480px;
+            max-width: 90%;
+        }
+
+        .doc-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-flex">
+            <h2>Gestión de Inscripciones, Vacantes y Documentación</h2>
+            <div>
+                <button onclick="location.href='alumnos.html'" class="btn-secondary">Ir a Alumnos</button>
+                <button onclick="location.href='menu.html'" class="btn-secondary">Volver al Menú</button>
+            </div>
+        </div>
+        <hr>
+
+        <!-- 1. FORMULARIO PARA ASIGNAR UN ALUMNO A UN CURSO -->
+        <h3>1. Nueva Solicitud de Inscripción (Asignar Alumno a Curso)</h3>
+        <form id="formInscripcion">
+            <select id="selectAlumno" required>
+                <option value="">Seleccione un Alumno...</option>
+            </select>
+            <select id="selectCurso" required>
+                <option value="">Seleccione un Curso y Turno...</option>
+            </select>
+            <input type="number" id="cicloLectivo" value="2026" style="min-width: 100px; width: 100px;" required>
+            <input type="text" id="observacion" placeholder="Observaciones (opcional)">
+            <button type="submit" class="btn-success">Inscribir / Evaluar Cupo</button>
+        </form>
+
+        <!-- 2. REPORTE DIARIO DE VACANTES POR CURSO -->
+        <h3 style="margin-top: 30px;">2. Control Diario de Vacantes por Curso</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Curso y Turno</th>
+                    <th>Docente a Cargo</th>
+                    <th>Cupo Máximo</th>
+                    <th>Confirmados (Inscriptos)</th>
+                    <th>Reservas (Pendientes)</th>
+                    <th>Vacantes Libres</th>
+                    <th>En Lista de Espera</th>
+                </tr>
+            </thead>
+            <tbody id="tablaVacantes"></tbody>
+        </table>
+
+        <!-- 3. PADRÓN DE SOLICITUDES DE INSCRIPCIÓN -->
+        <h3 style="margin-top: 30px;">3. Solicitudes de Inscripción y Validación de Requisitos</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Alumno (DNI)</th>
+                    <th>Tutor</th>
+                    <th>Curso Solicitado</th>
+                    <th>Estado</th>
+                    <th>Documentación</th>
+                    <th>Acciones de Estado / Constancia</th>
+                </tr>
+            </thead>
+            <tbody id="tablaInscripciones"></tbody>
+        </table>
+    </div>
+
+    <!-- MODAL PARA TILDAR Y VALIDAR DOCUMENTACIÓN -->
+    <div id="modalDocs" class="modal">
+        <div class="modal-content">
+            <h3>Checklist de Documentación Obligatoria</h3>
+            <p id="modalAlumnoInfo" style="font-weight: bold; color: #555;"></p>
+            <div id="listaDocumentos"></div>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                * Al marcar todos los requisitos como Presentados y Validados, la inscripción pasará automáticamente al estado <b>Inscripto</b>.
+            </p>
+            <div style="text-align: right; margin-top: 15px;">
+                <button class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn-success" onclick="guardarDocumentacion()">Guardar y Validar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+            let inscripcionesGlobal = [];
+            let idInscripcionActual = null;
+
+            async function inicializar() {
+                await cargarCombos();
+                await cargarVacantes();
+                await cargarInscripciones();
+            }
+
+            async function cargarCombos() {
+                const [resAlumnos, resCursos] = await Promise.all([
+                    fetch('/api/Alumnos'),
+                    fetch('/api/Cursos')
+                ]);
+
+                if (resAlumnos.ok) {
+                    const alumnos = await resAlumnos.json();
+                    const selA = document.getElementById('selectAlumno');
+                    selA.innerHTML = '<option value="">Seleccione un Alumno...</option>';
+                    alumnos.forEach(a => {
+                        selA.innerHTML += `<option value="${a.idAlumno}">${a.apellido}, ${a.nombre} (DNI: ${a.dni})</option>`;
+                    });
+                }
+
+                if (resCursos.ok) {
+                    const cursos = await resCursos.json();
+                    const selC = document.getElementById('selectCurso');
+                    selC.innerHTML = '<option value="">Seleccione un Curso y Turno...</option>';
+                    cursos.forEach(c => {
+                        selC.innerHTML += `<option value="${c.idCurso}">${c.nivel} - ${c.anioCurso}° '${c.division}' (${c.turno}) - Cupo Máx: ${c.cupoMaximo}</option>`;
+                    });
+                }
+            }
+
+            async function cargarVacantes() {
+                const res = await fetch('/api/Inscripciones/vacantes');
+                if (res.ok) {
+                    const data = await res.json();
+                    const tbody = document.getElementById('tablaVacantes');
+                    tbody.innerHTML = '';
+                    data.forEach(v => {
+                        const libres = v.vacantesDisponibles < 0 ? 0 : v.vacantesDisponibles;
+                        tbody.innerHTML += `
+                            <tr>
+                                <td><b>${v.curso}</b></td>
+                                <td>${v.docente}</td>
+                                <td>${v.cupoMaximo}</td>
+                                <td>${v.inscriptosConfirmados}</td>
+                                <td>${v.pendientesReserva}</td>
+                                <td style="font-weight:bold; color: ${libres > 0 ? '#198754' : '#dc3545'};">${libres}</td>
+                                <td>${v.enListaEspera}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+
+            function obtenerClaseBadge(estado) {
+                if (estado === 'Inscripto') return 'bg-inscripto';
+                if (estado === 'Pendiente') return 'bg-pendiente';
+                if (estado === 'En Lista de Espera') return 'bg-espera';
+                return 'bg-rechazado';
+            }
+
+            async function cargarInscripciones() {
+                const res = await fetch('/api/Inscripciones');
+                if (res.ok) {
+                    inscripcionesGlobal = await res.json();
+                    const tbody = document.getElementById('tablaInscripciones');
+                    tbody.innerHTML = '';
+
+                    inscripcionesGlobal.forEach(i => {
+                        const totalDocs = i.documentos.length;
+                        const validados = i.documentos.filter(d => d.validado).length;
+
+                        let botonesAccion = '';
+                        if (i.estadoInscripcion === 'En Lista de Espera') {
+                            botonesAccion += `<button class="btn-warning" onclick="cambiarEstado(${i.idInscripcion}, 'Pendiente')">Asignar Vacante (Pendiente)</button>`;
+                            botonesAccion += `<button class="btn-success" onclick="cambiarEstado(${i.idInscripcion}, 'Inscripto')">Habilitar Directo (Inscripto)</button>`;
+                        } else if (i.estadoInscripcion === 'Pendiente') {
+                            botonesAccion += `<button class="btn-success" onclick="cambiarEstado(${i.idInscripcion}, 'Inscripto')">Confirmar Inscripción</button>`;
+                            botonesAccion += `<button class="btn-warning" onclick="cambiarEstado(${i.idInscripcion}, 'En Lista de Espera')">Pasar a Espera</button>`;
+                        } else if (i.estadoInscripcion === 'Inscripto') {
+                            botonesAccion += `<button onclick="emitirConstancia(${i.idInscripcion})">📄 Constancia</button>`;
+                        }
+
+                        if (i.estadoInscripcion !== 'Baja/Rechazado') {
+                            botonesAccion += `<button class="btn-danger" onclick="cambiarEstado(${i.idInscripcion}, 'Baja/Rechazado')">Baja / Rechazar</button>`;
+                        } else {
+                            botonesAccion += `<button class="btn-warning" onclick="cambiarEstado(${i.idInscripcion}, 'Pendiente')">Reactivar</button>`;
+                        }
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${i.idInscripcion}</td>
+                                <td><b>${i.alumnoNombre}</b><br><small>DNI: ${i.alumnoDni}</small></td>
+                                <td>${i.tutorNombre}</td>
+                                <td>${i.cursoDescripcion}</td>
+                                <td><span class="badge ${obtenerClaseBadge(i.estadoInscripcion)}">${i.estadoInscripcion}</span></td>
+                                <td>
+                                    <button class="btn-secondary" onclick="abrirModalDocs(${i.idInscripcion})">
+                                        📋 Docs (${validados}/${totalDocs})
+                                    </button>
+                                </td>
+                                <td>${botonesAccion}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+
+            document.getElementById('formInscripcion').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const body = {
+                    idAlumno: parseInt(document.getElementById('selectAlumno').value),
+                    idCurso: parseInt(document.getElementById('selectCurso').value),
+                    cicloLectivo: parseInt(document.getElementById('cicloLectivo').value),
+                    observacion: document.getElementById('observacion').value
+                };
+
+                const res = await fetch('/api/Inscripciones', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.mensaje);
+                    document.getElementById('formInscripcion').reset();
+                    await cargarVacantes();
+                    await cargarInscripciones();
+                } else {
+                    alert('Atención: ' + (data.mensaje || 'Error al registrar la inscripción.'));
+                }
+            });
+
+            function abrirModalDocs(idInscripcion) {
+                idInscripcionActual = idInscripcion;
+                const insc = inscripcionesGlobal.find(x => x.idInscripcion === idInscripcion);
+                if (!insc) return;
+
+                document.getElementById('modalAlumnoInfo').innerText = `${insc.alumnoNombre} - ${insc.cursoDescripcion}`;
+                const contenedor = document.getElementById('listaDocumentos');
+                contenedor.innerHTML = '';
+
+                insc.documentos.forEach(d => {
+                    contenedor.innerHTML += `
+                        <div class="doc-item">
+                            <span><b>${d.nombreDocumento}</b></span>
+                            <div>
+                                <label><input type="checkbox" class="chk-pres" data-id="${d.idDocumentacion}" ${d.presentado ? 'checked' : ''}> Presentado</label>
+                                <label style="margin-left:10px;"><input type="checkbox" class="chk-val" data-id="${d.idDocumentacion}" ${d.validado ? 'checked' : ''}> Validado</label>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('modalDocs').style.display = 'flex';
+            }
+
+            function cerrarModal() {
+                document.getElementById('modalDocs').style.display = 'none';
+                idInscripcionActual = null;
+            }
+
+            async function guardarDocumentacion() {
+                const insc = inscripcionesGlobal.find(x => x.idInscripcion === idInscripcionActual);
+                if (!insc) return;
+
+                const payload = insc.documentos.map(d => {
+                    const pres = document.querySelector(`.chk-pres[data-id="${d.idDocumentacion}"]`).checked;
+                    const val = document.querySelector(`.chk-val[data-id="${d.idDocumentacion}"]`).checked;
+                    return { idDocumentacion: d.idDocumentacion, presentado: pres, validado: val };
+                });
+
+                const res = await fetch(`/api/Inscripciones/${idInscripcionActual}/documentacion`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`${data.mensaje}\nEstado actual: ${data.nuevoEstado}`);
+                    cerrarModal();
+                    await cargarVacantes();
+                    await cargarInscripciones();
+                } else {
+                    alert('Atención: ' + (data.mensaje || 'No se pudo actualizar.'));
+                    cerrarModal();
+                    await cargarVacantes();
+                    await cargarInscripciones();
+                }
+            }
+
+            async function cambiarEstado(idInscripcion, nuevoEstado) {
+                if (!confirm(`¿Confirma cambiar el estado de la solicitud a "${nuevoEstado}"?`)) return;
+
+                const res = await fetch(`/api/Inscripciones/${idInscripcion}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nuevoEstado })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    await cargarVacantes();
+                    await cargarInscripciones();
+                } else {
+                    alert('Error: ' + (data.mensaje || 'No se pudo cambiar el estado.'));
+                }
+            }
+
+            function emitirConstancia(idInscripcion) {
+                const i = inscripcionesGlobal.find(x => x.idInscripcion === idInscripcion);
+                if (!i) return;
+
+                const ventana = window.open('', '_blank', 'width=700,height=550');
+                ventana.document.write(`
+                    <html>
+                    <head><title>Constancia de Inscripción #${i.idInscripcion}</title></head>
+                    <body style="font-family: Arial, sans-serif; padding: 40px; border: 2px solid #000; margin: 20px;">
+                        <h2 style="text-align:center;">INSTITUTO EDUCATIVO "SAN MARTÍN"</h2>
+                        <h3 style="text-align:center; color:#198754;">CONSTANCIA OFICIAL DE MATRÍCULA DEFINITIVA</h3>
+                        <hr>
+                        <p>Por la presente se deja constancia de que el/la estudiante <b>${i.alumnoNombre}</b> (DNI N° <b>${i.alumnoDni}</b>), representado/a por su tutor/a <b>${i.tutorNombre}</b>, ha completado y validado la totalidad de la documentación reglamentaria.</p>
+                        <p>Se encuentra formalmente <b>INSCRIPTO/A</b> para el Ciclo Lectivo <b>${i.cicloLectivo}</b> en:</p>
+                        <ul>
+                            <li><b>Curso y Turno:</b> ${i.cursoDescripcion}</li>
+                            <li><b>Docente a cargo:</b> ${i.docenteNombre}</li>
+                            <li><b>N° de Solicitud:</b> ${i.idInscripcion}</li>
+                            <li><b>Fecha de Confirmación:</b> ${new Date(i.fechaResolucion || Date.now()).toLocaleDateString('es-AR')}</li>
+                        </ul>
+                        <br><br>
+                        <p style="text-align:right;">_______________________________<br>Secretaría General</p>
+                        <div style="text-align:center; margin-top:30px;">
+                            <button onclick="window.print()" style="padding:10px 20px; font-size:14px;">Imprimir Constancia</button>
+                        </div>
+                    </body>
+                    </html>
+                `);
+            }
+
+            inicializar();
+    </script>
+</body>
+</html>

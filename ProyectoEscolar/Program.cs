@@ -1,33 +1,32 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using ProyectoEscolar.Data;
-using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Configurar conexión a MySQL
+// 1. Configurar conexión a MySQL apuntando a host.docker.internal:3307
 var connectionString = builder.Configuration.GetConnectionString("MYSQL_CONNECTION_STRING_EF");
-builder.Services.AddDbContext<SistemaEscolarContext>(options =>
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 0))));
 
-// 2. Configurar Seguridad (JWT)
-var jwtKey = builder.Configuration["Jwt:Key"];
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
+builder.Services.AddDbContext<SistemaEscolarContext>(options =>
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 0)),
+        mysqlOptions =>
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!)),
-            ValidateIssuer = false,
-            ValidateAudience = false
-        };
+            mysqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null);
+        }));
+
+// 2. Configurar Controladores e ignorar ciclos infinitos en JSON
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
-builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(); // Swagger para probar la API visualmente
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(options =>
     options.AddPolicy("PermitirTodo", policy =>
@@ -41,11 +40,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseStaticFiles(); // <--- Habilita la lectura de la carpeta wwwroot
+app.UseStaticFiles();
 app.UseCors("PermitirTodo");
-app.UseAuthentication();
-app.UseAuthorization();
 
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

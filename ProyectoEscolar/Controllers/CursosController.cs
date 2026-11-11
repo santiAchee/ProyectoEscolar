@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProyectoEscolar.Data;
 using ProyectoEscolar.Models;
@@ -8,7 +7,6 @@ namespace ProyectoEscolar.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class CursosController : ControllerBase
     {
         private readonly SistemaEscolarContext _context;
@@ -28,15 +26,13 @@ namespace ProyectoEscolar.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post(Curso curso)
+        public async Task<IActionResult> Post([FromBody] Curso curso)
         {
-            // Validar que el Docente a cargo exista
-            var docenteExiste = await _context.Docentes.AnyAsync(d => d.IdDocente == curso.IdDocente);
+            var docenteExiste = await _context.Docentes.AnyAsync(d => d.IdDocente == curso.IdDocente && d.Activo == true);
             if (!docenteExiste)
-            {
-                return BadRequest(new { mensaje = "El ID de docente especificado no existe." });
-            }
+                return BadRequest(new { mensaje = "El docente especificado no existe o está inactivo." });
 
+            curso.IdCurso = 0;
             curso.Activo = true;
             _context.Cursos.Add(curso);
             await _context.SaveChangesAsync();
@@ -45,17 +41,23 @@ namespace ProyectoEscolar.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, Curso curso)
+        public async Task<IActionResult> Put(int id, [FromBody] Curso curso)
         {
-            if (id != curso.IdCurso) return BadRequest(new { mensaje = "El ID no coincide." });
+            var existente = await _context.Cursos.FindAsync(id);
+            if (existente == null) return NotFound(new { mensaje = "Curso no encontrado." });
 
-            var docenteExiste = await _context.Docentes.AnyAsync(d => d.IdDocente == curso.IdDocente);
+            var docenteExiste = await _context.Docentes.AnyAsync(d => d.IdDocente == curso.IdDocente && d.Activo == true);
             if (!docenteExiste)
-            {
-                return BadRequest(new { mensaje = "El ID de docente especificado no existe." });
-            }
+                return BadRequest(new { mensaje = "El docente especificado no existe o está inactivo." });
 
-            _context.Cursos.Update(curso);
+            existente.IdDocente = curso.IdDocente;
+            existente.Nivel = curso.Nivel;
+            existente.AnioCurso = curso.AnioCurso;
+            existente.Division = curso.Division;
+            existente.Turno = curso.Turno;
+            existente.CupoMaximo = curso.CupoMaximo;
+            existente.Activo = curso.Activo ?? true;
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -66,7 +68,7 @@ namespace ProyectoEscolar.Controllers
             var curso = await _context.Cursos.FindAsync(id);
             if (curso == null) return NotFound();
 
-            curso.Activo = false; // Baja lógica
+            curso.Activo = false;
             await _context.SaveChangesAsync();
             return NoContent();
         }
