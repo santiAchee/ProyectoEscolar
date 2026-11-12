@@ -1,10 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using ProyectoEscolar.Data;
 using ProyectoEscolar.Models;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace ProyectoEscolar.Controllers
 {
@@ -12,41 +7,37 @@ namespace ProyectoEscolar.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly SistemaEscolarContext _context;
-        private readonly IConfiguration _config;
-
-        public AuthController(SistemaEscolarContext context, IConfiguration config)
+        // Usuarios preconfigurados según los actores del Diagrama de Actividades y DFD
+        private static readonly Dictionary<string, (string Password, string Rol, string NombreMostrar)> UsuariosSistema = new(StringComparer.OrdinalIgnoreCase)
         {
-            _context = context;
-            _config = config;
-        }
+            { "admin", ("1234", "Administrador General", "Administración") },
+            { "secretaria", ("1234", "Personal Administrativo", "Mesa de Entradas / Secretaría") },
+            { "secretario", ("1234", "Secretario General", "Secretaría General") },
+            { "direccion", ("1234", "Dirección Escolar", "Dirección Institucional") }
+        };
 
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
-            // SOLUCIÓN TEMPORAL: Usamos un usuario fijo para que puedas probar la API.
-            // En Swagger vas a usar -> Email: admin@admin.com | Password: 123
-            if (request.Email != "admin@admin.com" || request.Password != "123")
+            if (request == null || string.IsNullOrWhiteSpace(request.Usuario) || string.IsNullOrWhiteSpace(request.Password))
+                return BadRequest(new { mensaje = "Debe ingresar usuario y contraseña." });
+
+            if (UsuariosSistema.TryGetValue(request.Usuario.Trim(), out var datos) && datos.Password == request.Password)
             {
-                return Unauthorized("Credenciales inválidas");
+                // Generamos un token de sesión amigable que no bloquea Swagger
+                var fakeToken = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{request.Usuario}:{datos.Rol}:{DateTime.UtcNow.Ticks}"));
+
+                return Ok(new
+                {
+                    token = fakeToken,
+                    usuario = request.Usuario.ToLower(),
+                    rol = datos.Rol,
+                    nombre = datos.NombreMostrar,
+                    mensaje = $"Bienvenido/a {datos.NombreMostrar}"
+                });
             }
 
-            // Generación del Token JWT
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, request.Email)
-            };
-
-            var token = new JwtSecurityToken(
-                claims: claims,
-                expires: DateTime.UtcNow.AddHours(2),
-                signingCredentials: creds
-            );
-
-            return Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
+            return Unauthorized(new { mensaje = "Usuario o contraseña incorrectos. Probá con: admin / 1234" });
         }
     }
 }

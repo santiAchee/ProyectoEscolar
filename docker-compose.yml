@@ -1,0 +1,23 @@
+version: '3.4'
+
+services:
+  db-escolar:
+    image: mysql:8.0
+    container_name: mysql_sistema_escolar
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Admin123!
+      MYSQL_DATABASE: SistemaEscolar
+    ports:
+      - "3308:3306"
+
+  proyectoescolar:
+    image: ${DOCKER_REGISTRY-}proyectoescolar
+    container_name: api_sistema_escolar
+    build:
+      context: .
+      dockerfile: ProyectoEscolar/Dockerfile
+    depends_on:
+      - db-escolar
+    ports:
+      - "8080:8080"
